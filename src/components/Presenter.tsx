@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useMotionValueEvent, useSpring } from 'motion/react';
 import { renderPage, type PDFDocumentProxy } from '../lib/pdf';
 import { GestureEngine, type TrackingState } from '../lib/gestures';
 import { useHandTracking, type HandFrame } from '../hooks/useHandTracking';
@@ -185,6 +185,28 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
   const slideW = Math.min(boxW, boxH * aspect);
   const slideH = slideW / aspect;
 
+  /* ---------- zoom ---------- */
+  const zoomTarget = useMotionValue(1);
+  const zoom = useSpring(zoomTarget, { stiffness: 220, damping: 28, mass: 0.9 });
+  const originX = useMotionValue(window.innerWidth / 2);
+  const originY = useMotionValue(window.innerHeight / 2);
+  const transformOrigin = useMotionTemplate`${originX}px ${originY}px`;
+  const [zoomText, setZoomText] = useState('1.0×');
+  useMotionValueEvent(zoom, 'change', v => setZoomText(`${v.toFixed(1)}×`));
+
+  const setZoomLevel = useCallback(
+    (level: number, origin?: { x: number; y: number }) => {
+      const clamped = clamp(level, 1, 3);
+      if (origin) {
+        originX.set(origin.x);
+        originY.set(origin.y);
+      }
+      zoomTarget.set(clamped);
+      engine.setZoom(clamped);
+    },
+    [engine, originX, originY, zoomTarget],
+  );
+
   /* ---------- navigation ---------- */
   const goTo = useCallback(
     (target: number) => {
@@ -194,9 +216,10 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
       setDir(next > current ? 1 : -1);
       pageRef.current = next;
       setPage(next);
+      setZoomLevel(1);
       return true;
     },
-    [total],
+    [setZoomLevel, total],
   );
 
   const turn = useCallback(
@@ -302,6 +325,17 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
         case 'End':
           goTo(total);
           break;
+        case '+':
+        case '=':
+          setZoomLevel(zoomTarget.get() * 1.25, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+          break;
+        case '-':
+        case '_':
+          setZoomLevel(zoomTarget.get() / 1.25);
+          break;
+        case '0':
+          setZoomLevel(1);
+          break;
         case 'f':
         case 'F':
           toggleFullscreen();
@@ -317,13 +351,13 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goTo, onExit, poke, toggleFullscreen, total, turn]);
+  }, [goTo, onExit, poke, setZoomLevel, toggleFullscreen, total, turn, zoomTarget]);
 
   const chip = trackingChip(cameraOn, cameraStatus, tracking);
 
   return (
     <div className={`presenter${hudVisible ? '' : ' is-idle'}`} onPointerMove={poke} onClick={poke}>
-      <div className="zoom-layer">
+      <motion.div className="zoom-layer" style={{ scale: zoom, transformOrigin }}>
         <AnimatePresence initial={false} custom={dir}>
           <motion.div
             key={page}
@@ -350,7 +384,7 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
             )}
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
 
       {navFlash && (
         <div
@@ -382,6 +416,7 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
         chip={chip}
         page={page}
         total={total}
+        zoomText={zoomText !== '1.0×' ? zoomText : undefined}
         cameraOn={cameraOn}
         isFullscreen={isFullscreen}
         onPrev={() => turn(-1)}

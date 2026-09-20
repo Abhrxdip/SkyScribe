@@ -27,6 +27,7 @@ interface HudProps {
   chip: { state: ChipState; text: string };
   page: number;
   total: number;
+  zoomText?: string;
   cameraOn: boolean;
   isFullscreen: boolean;
   onPrev: () => void;
@@ -60,6 +61,7 @@ export function Hud(props: HudProps) {
           <Icon name="arrowLeft" size={16} />
         </button>
         <span className="chip mono">{`${pad2(Math.min(page, total))} / ${pad2(total)}`}</span>
+        {props.zoomText && <span className="chip mono dim">{props.zoomText}</span>}
         <button
           className="icon-btn"
           type="button"
