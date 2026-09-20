@@ -6,6 +6,7 @@ import { useHandTracking, type HandFrame } from '../hooks/useHandTracking';
 import { Mark } from './Brand';
 import { Hud, trackingChip } from './Hud';
 import { SlideCanvas } from './SlideCanvas';
+import { OverlayRenderer } from '../lib/overlay';
 
 const STAGE_PAD = 20;
 const HUD_HIDE_MS = 3000;
@@ -47,6 +48,20 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   const [toast, setToast] = useState<string | null>(null);
   const [navFlash, setNavFlash] = useState<'left' | 'right' | null>(null);
+
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<OverlayRenderer | null>(null);
+
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas) return;
+    const overlay = new OverlayRenderer(canvas, 10);
+    overlayRef.current = overlay;
+    return () => {
+      overlay.destroy();
+      overlayRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     document.title = `${name} · SkyScribe`;
@@ -216,6 +231,12 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
         if (out.tracking === 'lost') poke();
       }
 
+      if (out.pointer) {
+        overlayRef.current?.pushCursor({ tool: 'laser', ...out.pointer, color: '#FFB23E' });
+      } else {
+        overlayRef.current?.pushCursor(null);
+      }
+
       for (const ev of out.events) {
         if (ev.type === 'next') {
           turn(1);
@@ -369,6 +390,8 @@ export function Presenter({ doc, name, startPage = 1, onPage, onExit }: Presente
         onFullscreen={toggleFullscreen}
         onExit={onExit}
       />
+
+      <canvas ref={overlayCanvasRef} className="overlay overlay-top" aria-hidden="true" />
 
       <div className={`rail${hudVisible ? '' : ' is-hidden'}`} aria-hidden="true">
         <div style={{ transform: `scaleX(${Math.min(page, total) / total})` }} />
