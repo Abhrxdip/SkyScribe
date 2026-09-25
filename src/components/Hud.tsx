@@ -1,6 +1,21 @@
 import type { CameraStatus } from '../hooks/useHandTracking';
-import type { TrackingState } from '../lib/gestures';
+import type { PointerTool, Tool, TrackingState } from '../lib/gestures';
 import { Icon } from './Icon';
+
+export const TOOL_LABEL: Record<Tool, string> = {
+  laser: 'Laser',
+  lens: 'Zoom',
+  pen: 'Pen',
+  rect: 'Rectangle',
+  ellipse: 'Circle',
+  arrow: 'Arrow',
+  eraser: 'Eraser',
+  zoom: 'Zoom',
+  menu: 'Menu',
+  clear: 'Clear',
+};
+
+export const POINTER_LABEL: Record<PointerTool, string> = { laser: 'Laser', lens: 'Zoom', eraser: 'Eraser' };
 
 type ChipState = 'ok' | 'search' | 'lost' | 'off';
 
@@ -19,7 +34,7 @@ export function trackingChip(cameraOn: boolean, status: CameraStatus, tracking: 
   }
   if (tracking === 'tracking') return { state: 'ok', text: 'Hand detected' };
   if (tracking === 'lost') return { state: 'lost', text: 'Hand lost' };
-  return { state: 'search', text: 'Looking for hand' };
+  return { state: 'search', text: 'Looking for a hand' };
 }
 
 interface HudProps {
@@ -27,11 +42,17 @@ interface HudProps {
   chip: { state: ChipState; text: string };
   page: number;
   total: number;
-  zoomText?: string;
+  zoomText: string;
+  tool: Tool | null;
+  pointerTool: PointerTool;
+  board: boolean;
+  onMenu: () => void;
   cameraOn: boolean;
   isFullscreen: boolean;
-  onPrev: () => void;
-  onNext: () => void;
+  panel: 'help' | 'settings' | 'tips' | null;
+  onHelp: () => void;
+  onTrain: () => void;
+  onSettings: () => void;
   onCamera: () => void;
   onFullscreen: () => void;
   onExit: () => void;
@@ -40,7 +61,7 @@ interface HudProps {
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 export function Hud(props: HudProps) {
-  const { visible, chip, page, total } = props;
+  const { visible, chip, page, total, zoomText, tool, pointerTool, board } = props;
 
   return (
     <div className={`hud${visible ? '' : ' is-hidden'}`}>
@@ -50,39 +71,32 @@ export function Hud(props: HudProps) {
           {chip.text}
         </span>
         <span className="hud-div" />
-        <button
-          className="icon-btn"
-          type="button"
-          onClick={props.onPrev}
-          disabled={page <= 1}
-          title="Previous slide (←)"
-          style={{ width: 28, height: 28, padding: 0 }}
-        >
-          <Icon name="arrowLeft" size={16} />
+        <span className="chip mono">{board ? 'Whiteboard' : `${pad2(Math.min(page, total))} / ${pad2(total)}`}</span>
+        <span className="chip mono dim">{zoomText}</span>
+        <button className="chip chip-btn" type="button" onClick={props.onMenu} title="Tool menu (M)">
+          1 finger · {POINTER_LABEL[pointerTool]}
         </button>
-        <span className="chip mono">{`${pad2(Math.min(page, total))} / ${pad2(total)}`}</span>
-        {props.zoomText && <span className="chip mono dim">{props.zoomText}</span>}
-        <button
-          className="icon-btn"
-          type="button"
-          onClick={props.onNext}
-          disabled={page >= total}
-          title="Next slide (→)"
-          style={{ width: 28, height: 28, padding: 0 }}
-        >
-          <Icon name="arrowRight" size={16} />
-        </button>
+        {tool && <span className="pill">{TOOL_LABEL[tool]}</span>}
       </div>
 
       <div className="hudbar">
-        <button className="icon-btn" type="button" onClick={props.onCamera} title={props.cameraOn ? 'Turn camera off' : 'Turn camera on'}>
+        <button className="icon-btn" type="button" onClick={props.onHelp} aria-pressed={props.panel === 'help'} title="Help (?)">
+          <Icon name="help" />
+        </button>
+        <button className="icon-btn" type="button" onClick={props.onTrain} title="Practice gestures (T)">
+          <Icon name="hand" />
+        </button>
+        <button className="icon-btn" type="button" onClick={props.onSettings} aria-pressed={props.panel === 'settings'} title="Settings">
+          <Icon name="settings" />
+        </button>
+        <button className="icon-btn" type="button" onClick={props.onCamera} title={props.cameraOn ? 'Turn tracking off' : 'Turn tracking on'}>
           <Icon name={props.cameraOn ? 'camera' : 'cameraOff'} />
         </button>
         <button className="icon-btn" type="button" onClick={props.onFullscreen} title="Fullscreen (F)">
           <Icon name={props.isFullscreen ? 'shrink' : 'expand'} />
         </button>
         <span className="hud-div" />
-        <button className="icon-btn" type="button" onClick={props.onExit} title="Exit presentation (Esc)">
+        <button className="icon-btn" type="button" onClick={props.onExit} title="Exit (Esc)">
           <Icon name="close" />
         </button>
       </div>
