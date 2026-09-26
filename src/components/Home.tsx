@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { closePdf, openPdf, openPdfBytes, PdfError, renderPage, type PDFDocumentProxy } from '../lib/pdf';
-import { clearPrefs } from '../lib/prefs';
+import { clearPrefs, loadPrefs, savePrefs, type Prefs } from '../lib/prefs';
 import { forgetRecentDeck, loadRecentDeck, saveRecentDeck, type RecentDeck } from '../lib/recent';
 import { Lockup } from './Brand';
 import { GestureList } from './GestureCards';
@@ -8,6 +8,7 @@ import { Icon } from './Icon';
 import { Scribble } from './Scribble';
 import { SlideDemo } from './SlideDemo';
 import { SlideCanvas } from './SlideCanvas';
+import { Trainer } from './Trainer';
 import InteractiveGridBackground from './InteractiveGridBackground';
 
 interface LoadedDeck {
@@ -34,6 +35,13 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
   }, [state]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const updatePrefs = useCallback((next: Prefs) => {
+    setPrefs(next);
+    savePrefs(next);
+  }, []);
+  const [trainer, setTrainer] = useState<null | 'practice' | 'before-present'>(null);
 
   // The last deck, to pick up where the presentation stopped.
   const [recent, setRecent] = useState<RecentDeck | null>(null);
@@ -140,8 +148,10 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
     onPresent(doc, name, startPage);
   };
 
+  // The first-run trainer shows up once; after that the saved hand (or the choice to skip) is respected.
   const present = () => {
-    startPresenting();
+    if (!prefs.profile && !prefs.onboarded) setTrainer('before-present');
+    else startPresenting();
   };
 
   const forgetData = async () => {
@@ -151,6 +161,7 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
   };
 
   const choose = () => inputRef.current?.click();
+  const registered = !!prefs.profile;
   const pages = state.kind === 'ready' ? state.deck.doc.numPages : 0;
 
   return (
@@ -187,6 +198,15 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
 
       <header className="home-bar">
         <Lockup size={24} />
+        <nav className="home-nav">
+          <span className="hand-note" data-state={registered ? 'ok' : 'off'}>
+            {registered && <Icon name="check" size={14} />}
+            {registered ? 'Hand set up' : 'Hand not set up'}
+          </span>
+          <button className="btn btn-quiet btn-small" type="button" onClick={() => setTrainer('practice')}>
+            <Icon name="hand" size={16} /> {registered ? 'Practice' : 'Set up hand'}
+          </button>
+        </nav>
       </header>
 
       <main className="home-main">
@@ -202,7 +222,7 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
             </span>
             .
           </h1>
-          <p className="home-lead">Present and change slides hands-free using natural gestures through your computer’s camera.</p>
+          <p className="home-lead">Change slides, point with a laser, circle, underline and write over any PDF, using nothing but your computer’s camera.</p>
 
           <div className={`sheet${dragging ? ' is-dragging' : ''}`} data-state={state.kind}>
             <input
@@ -285,7 +305,7 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
                   <span className="label">Ready to present</span>
                   <h2 className="display deck-name">{state.deck.name}</h2>
                   <span className="mono deck-meta">
-                    {pages} {pages === 1 ? 'slide' : 'slides'}
+                    {pages} {pages === 1 ? 'slide' : 'slides'} · blank whiteboard included
                     {state.deck.startPage > 1 && ` · resumes at slide ${state.deck.startPage}`}
                   </span>
                   <div className="deck-go">
@@ -294,7 +314,9 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
                     </button>
                     <Scribble kind="arrow" delay={450} />
                   </div>
-                  <p className="deck-note">The camera and fullscreen turn on when you start.</p>
+                  <p className="deck-note">
+                    {registered || prefs.onboarded ? 'The camera and fullscreen turn on when you start.' : 'First, one minute to set up your hand.'}
+                  </p>
                   <div className="deck-links">
                     {state.deck.startPage > 1 && (
                       <button className="link" type="button" onClick={fromFirstSlide}>
@@ -315,9 +337,15 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
               <span className="step-num">1</span>
               <span>Open a PDF</span>
             </li>
-            <li>
+            <li data-done={registered}>
               <span className="step-num">2</span>
-              <span>Allow camera access</span>
+              {registered ? (
+                <span>Set up your hand</span>
+              ) : (
+                <button className="link" type="button" onClick={() => setTrainer('practice')}>
+                  Set up your hand · 1 min
+                </button>
+              )}
             </li>
             <li>
               <span className="step-num">3</span>
@@ -329,6 +357,9 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
         <aside className="home-index" aria-label="Gestures">
           <header className="index-head">
             <h2 className="display">Gestures</h2>
+            <button className="link" type="button" onClick={() => setTrainer('practice')}>
+              {registered ? 'Practice' : 'Learn them'} →
+            </button>
           </header>
           <div className="index-scroll">
             <GestureList />
@@ -359,6 +390,25 @@ export function Home({ onPresent }: { onPresent: (doc: PDFDocumentProxy, name: s
           </footer>
         </aside>
       </main>
+
+      {trainer && (
+        <Trainer
+          prefs={prefs}
+          onPrefs={updatePrefs}
+          startStep={trainer === 'practice' && registered ? 'practice' : 'hand'}
+          doneLabel={trainer === 'before-present' ? 'Start presenting' : 'Done'}
+          skipLabel={trainer === 'before-present' ? 'Skip and present' : 'Close'}
+          onClose={() => {
+            const mode = trainer;
+            setTrainer(null);
+            // Read what the trainer saved, so its hand profile isn't overwritten by this render's copy.
+            const next = { ...loadPrefs(), onboarded: true };
+            savePrefs(next);
+            setPrefs(next);
+            if (mode === 'before-present') startPresenting();
+          }}
+        />
+      )}
     </div>
   );
 }
