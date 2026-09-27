@@ -36,7 +36,7 @@ function flush() {
   if (!queue.length) return;
   const body = queue.join('\n');
   queue = [];
-  fetch('/__myskyscribe/log', { method: 'POST', body, keepalive: true }).catch(() => {});
+  fetch('/__skyscribe/log', { method: 'POST', body, keepalive: true }).catch(() => {});
 }
 
 const round = (v: number) => Math.round(v * 1000) / 1000;

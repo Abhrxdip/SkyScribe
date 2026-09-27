@@ -1,7 +1,8 @@
 {
-  "name": "myskyscribe",
+  "name": "skyscribe",
+  "author": "abhrxdip",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
@@ -11,7 +12,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

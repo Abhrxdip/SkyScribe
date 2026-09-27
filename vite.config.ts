@@ -6,13 +6,13 @@ import { defineConfig, type Plugin } from 'vite'
 /** Dev only: receives diagnostics from src/lib/debug.ts and appends them to debug/session.jsonl. */
 function debugLogPlugin(): Plugin {
   return {
-    name: 'myskyscribe-debug-log',
+    name: 'skyscribe-debug-log',
     apply: 'serve',
     configureServer(server) {
       const dir = resolve(server.config.root, 'debug')
       mkdirSync(dir, { recursive: true })
       const file = resolve(dir, 'session.jsonl')
-      server.middlewares.use('/__myskyscribe/log', (req, res) => {
+      server.middlewares.use('/__skyscribe/log', (req, res) => {
         let body = ''
         req.on('data', chunk => (body += chunk))
         req.on('end', () => {

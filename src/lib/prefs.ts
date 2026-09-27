@@ -32,10 +32,10 @@ export const INK_COLORS = [
   { value: '#14161C', label: 'Graphite' },
 ] as const;
 
-const KEY = 'myskyscribe:prefs:v1';
-const LEGACY_KEY = 'skyscribe:prefs:v1';
-const PRACTICE_KEY = 'myskyscribe:practice:v1';
-const LEGACY_PRACTICE_KEY = 'skyscribe:practice:v1';
+const KEY = 'skyscribe:prefs:v1';
+const LEGACY_KEY = 'myskyscribe:prefs:v1';
+const PRACTICE_KEY = 'skyscribe:practice:v1';
+const LEGACY_PRACTICE_KEY = 'myskyscribe:practice:v1';
 const DEFAULTS: Prefs = { smoothing: 'balanced', showCamera: true, inkColor: INK_COLORS[0].value, pointerTool: 'laser', onboarded: false, showTips: true, profile: null };
 const SMOOTHINGS: SmoothingPreset[] = ['responsive', 'balanced', 'stable'];
 const POINTER_TOOLS: PointerTool[] = ['laser', 'lens', 'eraser'];
